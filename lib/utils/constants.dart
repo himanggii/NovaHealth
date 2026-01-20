@@ -26,6 +26,9 @@ class AppConstants {
   static const String keyThemeMode = 'theme_mode';
   static const String keyLanguage = 'language';
 
+  // 🔐 Health data consent
+  static const String keyConsentGiven = 'consent_given';
+
   // Validation
   static const int minPasswordLength = 8;
   static const int maxPasswordLength = 32;
