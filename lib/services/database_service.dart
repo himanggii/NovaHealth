@@ -1,3 +1,5 @@
+import '../services/security_service.dart';
+import 'package:hive/hive.dart' show HiveAesCipher;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_model.dart';
 import '../models/workout_model.dart';
@@ -26,9 +28,10 @@ class DatabaseService {
   Future<void> init() async {
     if (_initialized) return;
 
+    // 1️⃣ Initialize Hive (ONLY ONCE)
     await Hive.initFlutter();
 
-    // Register adapters
+    // 2️⃣ Register adapters BEFORE opening boxes
     Hive.registerAdapter(UserModelAdapter());
     Hive.registerAdapter(WorkoutModelAdapter());
     Hive.registerAdapter(HydrationModelAdapter());
@@ -40,23 +43,45 @@ class DatabaseService {
     Hive.registerAdapter(MeditationSessionModelAdapter());
     Hive.registerAdapter(RecipeModelAdapter());
 
-    // Open boxes
-    await Hive.openBox<UserModel>(AppConstants.userBox);
-    await Hive.openBox<WorkoutModel>(AppConstants.workoutBox);
-    await Hive.openBox<HydrationModel>('hydration_box');
-    await Hive.openBox<HealthMetricModel>(AppConstants.healthBox);
-    await Hive.openBox<SymptomModel>('symptom_box');
-    await Hive.openBox<PeriodCycleModel>('period_box');
-    await Hive.openBox<FoodLogModel>('food_log_box');
-    await Hive.openBox<MoodLogModel>('mood_box');
-    await Hive.openBox<MeditationSessionModel>('meditation_box');
-    await Hive.openBox<RecipeModel>('recipe_box');
-    await Hive.openBox(AppConstants.settingsBox);
+    // 3️⃣ Get encryption key
+    final keyBytes = await SecurityService().getKey();
+    assert(keyBytes.length == 32, 'Hive AES key must be exactly 32 bytes');
 
-    // Initialize SQLite for analytics and tracking
+    final cipher = HiveAesCipher(keyBytes);
+
+    // 4️⃣ Open encrypted Hive boxes
+    await Hive.openBox<UserModel>(
+      AppConstants.userBox,
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<WorkoutModel>(
+      AppConstants.workoutBox,
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<HydrationModel>(
+      'hydration_box',
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<HealthMetricModel>(
+      AppConstants.healthBox,
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<SymptomModel>('symptom_box', encryptionCipher: cipher);
+    await Hive.openBox<PeriodCycleModel>(
+      'period_box',
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<FoodLogModel>('food_log_box', encryptionCipher: cipher);
+    await Hive.openBox<MoodLogModel>('mood_box', encryptionCipher: cipher);
+    await Hive.openBox<MeditationSessionModel>(
+      'meditation_box',
+      encryptionCipher: cipher,
+    );
+    await Hive.openBox<RecipeModel>('recipe_box', encryptionCipher: cipher);
+    await Hive.openBox(AppConstants.settingsBox, encryptionCipher: cipher);
+
+    // 5️⃣ Initialize services
     await _sqliteService.init();
-
-    // Initialize sync service
     await _syncService.init();
 
     _initialized = true;
@@ -84,11 +109,15 @@ class DatabaseService {
   }
 
   // Workout operations
-  Box<WorkoutModel> get workoutBox => Hive.box<WorkoutModel>(AppConstants.workoutBox);
+  Box<WorkoutModel> get workoutBox =>
+      Hive.box<WorkoutModel>(AppConstants.workoutBox);
 
   Future<void> saveWorkout(WorkoutModel workout) async {
+    await _ensureConsentOrThrow();
+
     await workoutBox.put(workout.id, workout);
     // Track in SQLite for analytics
+
     await _syncService.trackWorkout(workout);
   }
 
@@ -112,17 +141,22 @@ class DatabaseService {
     DateTime end,
   ) {
     return workoutBox.values
-        .where((w) =>
-            w.userId == userId &&
-            w.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            w.date.isBefore(end.add(const Duration(days: 1))))
+        .where(
+          (w) =>
+              w.userId == userId &&
+              w.date.isAfter(start.subtract(const Duration(days: 1))) &&
+              w.date.isBefore(end.add(const Duration(days: 1))),
+        )
         .toList();
   }
 
   // Hydration operations
-  Box<HydrationModel> get hydrationBox => Hive.box<HydrationModel>('hydration_box');
+  Box<HydrationModel> get hydrationBox =>
+      Hive.box<HydrationModel>('hydration_box');
 
   Future<void> saveHydration(HydrationModel hydration) async {
+    await _ensureConsentOrThrow();
+
     await hydrationBox.put(hydration.id, hydration);
     // Track in SQLite for analytics
     await _syncService.trackHydration(hydration);
@@ -143,10 +177,14 @@ class DatabaseService {
     final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
     return hydrationBox.values
-        .where((h) =>
-            h.userId == userId &&
-            h.timestamp.isAfter(startOfDay.subtract(const Duration(seconds: 1))) &&
-            h.timestamp.isBefore(endOfDay.add(const Duration(seconds: 1))))
+        .where(
+          (h) =>
+              h.userId == userId &&
+              h.timestamp.isAfter(
+                startOfDay.subtract(const Duration(seconds: 1)),
+              ) &&
+              h.timestamp.isBefore(endOfDay.add(const Duration(seconds: 1))),
+        )
         .toList();
   }
 
@@ -160,6 +198,7 @@ class DatabaseService {
       Hive.box<HealthMetricModel>(AppConstants.healthBox);
 
   Future<void> saveHealthMetric(HealthMetricModel metric) async {
+    await _ensureConsentOrThrow();
     await healthBox.put(metric.id, metric);
     // Track in SQLite for analytics
     await _syncService.trackHealthMetrics(metric);
@@ -184,12 +223,13 @@ class DatabaseService {
           m.userId == userId &&
           m.date.isAfter(startOfDay.subtract(const Duration(seconds: 1))) &&
           m.date.isBefore(endOfDay.add(const Duration(seconds: 1))),
-      orElse: () => HealthMetricModel(
-        id: '',
-        userId: userId,
-        date: date,
-        createdAt: DateTime.now(),
-      ),
+      orElse:
+          () => HealthMetricModel(
+            id: '',
+            userId: userId,
+            date: date,
+            createdAt: DateTime.now(),
+          ),
     );
   }
 
@@ -207,11 +247,13 @@ class DatabaseService {
     DateTime end,
   ) {
     return healthBox.values
-        .where((m) =>
-            m.userId == userId &&
-            m.isPeriodDay &&
-            m.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            m.date.isBefore(end.add(const Duration(days: 1))))
+        .where(
+          (m) =>
+              m.userId == userId &&
+              m.isPeriodDay &&
+              m.date.isAfter(start.subtract(const Duration(days: 1))) &&
+              m.date.isBefore(end.add(const Duration(days: 1))),
+        )
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
   }
@@ -219,7 +261,12 @@ class DatabaseService {
   // Symptom tracking through health metrics
   List<HealthMetricModel> getHealthMetricsWithSymptoms(String userId) {
     return healthBox.values
-        .where((m) => m.userId == userId && m.symptoms != null && m.symptoms!.isNotEmpty)
+        .where(
+          (m) =>
+              m.userId == userId &&
+              m.symptoms != null &&
+              m.symptoms!.isNotEmpty,
+        )
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
@@ -230,10 +277,12 @@ class DatabaseService {
     DateTime end,
   ) {
     return healthBox.values
-        .where((m) =>
-            m.userId == userId &&
-            m.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            m.date.isBefore(end.add(const Duration(days: 1))))
+        .where(
+          (m) =>
+              m.userId == userId &&
+              m.date.isAfter(start.subtract(const Duration(days: 1))) &&
+              m.date.isBefore(end.add(const Duration(days: 1))),
+        )
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
   }
@@ -253,10 +302,25 @@ class DatabaseService {
     await settingsBox.delete(key);
   }
 
+  // ==================== Consent Enforcement ====================
+
+  Future<void> _ensureConsentOrThrow() async {
+    final consent = getSetting(
+      AppConstants.keyConsentGiven,
+      defaultValue: false,
+    );
+
+    if (consent != true) {
+      throw Exception('Cannot save health data: user consent not given');
+    }
+  }
+
   // Symptom operations
   Box<SymptomModel> get symptomBox => Hive.box<SymptomModel>('symptom_box');
 
   Future<void> saveSymptom(SymptomModel symptom) async {
+    await _ensureConsentOrThrow();
+
     await symptomBox.put(symptom.id, symptom);
   }
 
@@ -264,29 +328,31 @@ class DatabaseService {
     // Get the symptom to find its details
     final symptom = symptomBox.get(id);
     if (symptom == null) return;
-    
+
     // Delete from symptom box
     await symptomBox.delete(id);
-    
+
     // Also remove from health metrics
     final date = DateTime(
       symptom.timestamp.year,
       symptom.timestamp.month,
       symptom.timestamp.day,
     );
-    
+
     final healthMetric = getHealthMetricByDate(symptom.userId, date);
     if (healthMetric != null && healthMetric.symptoms != null) {
       // Remove this symptom from the health metric
       final updatedSymptoms = List<String>.from(healthMetric.symptoms!)
         ..remove(symptom.symptomType);
-      
-      final updatedSeverity = Map<String, int>.from(healthMetric.symptomSeverity ?? {})
-        ..remove(symptom.symptomType);
-      
-      final updatedBodyParts = Map<String, String>.from(healthMetric.symptomBodyParts ?? {})
-        ..remove(symptom.symptomType);
-      
+
+      final updatedSeverity = Map<String, int>.from(
+        healthMetric.symptomSeverity ?? {},
+      )..remove(symptom.symptomType);
+
+      final updatedBodyParts = Map<String, String>.from(
+        healthMetric.symptomBodyParts ?? {},
+      )..remove(symptom.symptomType);
+
       // Update the health metric
       final updated = HealthMetricModel(
         id: healthMetric.id,
@@ -309,7 +375,7 @@ class DatabaseService {
         symptomBodyParts: updatedBodyParts.isNotEmpty ? updatedBodyParts : null,
         symptomTriggers: healthMetric.symptomTriggers,
       );
-      
+
       await saveHealthMetric(updated);
     }
   }
@@ -320,9 +386,12 @@ class DatabaseService {
   }
 
   // Period cycle operations
-  Box<PeriodCycleModel> get periodBox => Hive.box<PeriodCycleModel>('period_box');
+  Box<PeriodCycleModel> get periodBox =>
+      Hive.box<PeriodCycleModel>('period_box');
 
   Future<void> savePeriodCycle(PeriodCycleModel cycle) async {
+    await _ensureConsentOrThrow();
+
     await periodBox.put(cycle.id, cycle);
   }
 
@@ -330,29 +399,32 @@ class DatabaseService {
     // Get the period cycle to find its date range
     final cycle = periodBox.get(id);
     if (cycle == null) return;
-    
+
     // Delete from period box
     await periodBox.delete(id);
-    
+
     // Also remove period data from health metrics for all days in the cycle
     final startDate = DateTime(
       cycle.startDate.year,
       cycle.startDate.month,
       cycle.startDate.day,
     );
-    
-    final endDate = cycle.endDate != null
-        ? DateTime(
-            cycle.endDate!.year,
-            cycle.endDate!.month,
-            cycle.endDate!.day,
-          )
-        : DateTime.now();
-    
+
+    final endDate =
+        cycle.endDate != null
+            ? DateTime(
+              cycle.endDate!.year,
+              cycle.endDate!.month,
+              cycle.endDate!.day,
+            )
+            : DateTime.now();
+
     // Clear period data from all days in the cycle
-    for (var date = startDate;
-        date.isBefore(endDate.add(const Duration(days: 1)));
-        date = date.add(const Duration(days: 1))) {
+    for (
+      var date = startDate;
+      date.isBefore(endDate.add(const Duration(days: 1)));
+      date = date.add(const Duration(days: 1))
+    ) {
       final healthMetric = getHealthMetricByDate(cycle.userId, date);
       if (healthMetric != null && healthMetric.isPeriodDay) {
         // Update the health metric to remove period data
@@ -368,16 +440,16 @@ class DatabaseService {
           energyLevel: healthMetric.energyLevel,
           notes: healthMetric.notes,
           createdAt: healthMetric.createdAt,
-          isPeriodDay: false,  // Clear period flag
-          flowIntensity: null,  // Clear flow intensity
-          periodSymptoms: null,  // Clear period symptoms
-          cycleDay: null,  // Clear cycle day
+          isPeriodDay: false, // Clear period flag
+          flowIntensity: null, // Clear flow intensity
+          periodSymptoms: null, // Clear period symptoms
+          cycleDay: null, // Clear cycle day
           symptoms: healthMetric.symptoms,
           symptomSeverity: healthMetric.symptomSeverity,
           symptomBodyParts: healthMetric.symptomBodyParts,
           symptomTriggers: healthMetric.symptomTriggers,
         );
-        
+
         await saveHealthMetric(updated);
       }
     }
@@ -402,6 +474,8 @@ class DatabaseService {
   Box<FoodLogModel> get foodLogBox => Hive.box<FoodLogModel>('food_log_box');
 
   Future<void> saveFoodLog(FoodLogModel foodLog) async {
+    await _ensureConsentOrThrow();
+
     await foodLogBox.put(foodLog.id, foodLog);
     // Track in SQLite for analytics
     await _syncService.trackFoodLog(foodLog);
@@ -423,10 +497,14 @@ class DatabaseService {
     final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
     return foodLogBox.values
-        .where((f) =>
-            f.userId == userId &&
-            f.timestamp.isAfter(startOfDay.subtract(const Duration(seconds: 1))) &&
-            f.timestamp.isBefore(endOfDay.add(const Duration(seconds: 1))))
+        .where(
+          (f) =>
+              f.userId == userId &&
+              f.timestamp.isAfter(
+                startOfDay.subtract(const Duration(seconds: 1)),
+              ) &&
+              f.timestamp.isBefore(endOfDay.add(const Duration(seconds: 1))),
+        )
         .toList()
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
@@ -435,6 +513,8 @@ class DatabaseService {
   Box<MoodLogModel> get moodBox => Hive.box<MoodLogModel>('mood_box');
 
   Future<void> saveMoodLog(MoodLogModel moodLog) async {
+    await _ensureConsentOrThrow();
+
     await moodBox.put(moodLog.id, moodLog);
     // Track in SQLite for analytics
     await _syncService.trackMood(moodLog);
@@ -457,10 +537,12 @@ class DatabaseService {
     DateTime end,
   ) {
     return moodBox.values
-        .where((m) =>
-            m.userId == userId &&
-            m.timestamp.isAfter(start.subtract(const Duration(days: 1))) &&
-            m.timestamp.isBefore(end.add(const Duration(days: 1))))
+        .where(
+          (m) =>
+              m.userId == userId &&
+              m.timestamp.isAfter(start.subtract(const Duration(days: 1))) &&
+              m.timestamp.isBefore(end.add(const Duration(days: 1))),
+        )
         .toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
@@ -470,6 +552,8 @@ class DatabaseService {
       Hive.box<MeditationSessionModel>('meditation_box');
 
   Future<void> saveMeditationSession(MeditationSessionModel session) async {
+    await _ensureConsentOrThrow();
+
     await meditationBox.put(session.id, session);
   }
 
@@ -490,11 +574,24 @@ class DatabaseService {
     DateTime checkDate = DateTime.now();
 
     while (true) {
-      final startOfDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
-      final endOfDay = DateTime(checkDate.year, checkDate.month, checkDate.day, 23, 59, 59);
+      final startOfDay = DateTime(
+        checkDate.year,
+        checkDate.month,
+        checkDate.day,
+      );
+      final endOfDay = DateTime(
+        checkDate.year,
+        checkDate.month,
+        checkDate.day,
+        23,
+        59,
+        59,
+      );
 
-      final hasSession = sessions.any((s) =>
-          s.timestamp.isAfter(startOfDay) && s.timestamp.isBefore(endOfDay));
+      final hasSession = sessions.any(
+        (s) =>
+            s.timestamp.isAfter(startOfDay) && s.timestamp.isBefore(endOfDay),
+      );
 
       if (hasSession) {
         streak++;
