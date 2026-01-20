@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=/Users/Sia/development/flutter"
-export "FLUTTER_APPLICATION_PATH=/Users/Sia/Desktop/Education/Year 3/PCL Y3/NovaHealth-Final 3/NovaHealth-Final"
+export "FLUTTER_ROOT=/workspaces/NovaHealth/flutter"
+export "FLUTTER_APPLICATION_PATH=/workspaces/NovaHealth"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"

@@ -1,8 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../pages/auth/mfa_challenge_page.dart';
 
 /// -------------------- AUTH STATE --------------------
 
@@ -109,6 +112,7 @@ Future<void> signUp({
 
   /// LOGIN
   Future<void> login({
+    required BuildContext context,
     required String email,
     required String password,
   }) async {
@@ -138,6 +142,18 @@ Future<void> signUp({
           successMessage: null,
         );
       }
+    } on FirebaseAuthMultiFactorException catch (e) {
+      // IMPORTANT:
+      // We intentionally navigate here instead of setting user state.
+      // User must complete MFA challenge before being considered authenticated.
+      // MFA required: navigate to challenge page so user can verify second factor.
+      state = state.copyWith(isLoading: false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MfaChallengePage(exception: e),
+        ),
+      );
     } catch (_) {
       state = state.copyWith(
         isLoading: false,

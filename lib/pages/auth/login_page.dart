@@ -29,10 +29,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
+      // Prevent duplicate login attempts while a request is in flight
+      final current = ref.read(authStateProvider);
+      if (current.isLoading) return;
+
       await ref.read(authStateProvider.notifier).login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+        context: context,
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
     }
   }
 

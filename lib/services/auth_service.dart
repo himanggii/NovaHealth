@@ -225,6 +225,10 @@ class AuthService {
         message: 'Login successful',
         user: user,
       );
+    } on FirebaseAuthMultiFactorException catch (e) {
+      // User has enrolled MFA — don't swallow this, let caller handle the flow
+      print("FirebaseAuthMultiFactorException in login: ${e.message}");
+      rethrow;
     } on FirebaseAuthException catch (e) {
       print("FirebaseAuthException in login: ${e.code} - ${e.message}");
       return AuthResult(
