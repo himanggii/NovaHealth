@@ -274,6 +274,13 @@ class SettingsPage extends ConsumerWidget {
               Navigator.pushNamed(context, '/change-password');
             },
           ),
+          ListTile(
+  leading: const Icon(Icons.security),
+  title: const Text('Multi-Factor Authentication'),
+  subtitle: const Text('Add an extra layer of account security'),
+  trailing: const Icon(Icons.chevron_right),
+  onTap: () => Navigator.pushNamed(context, AppRoutes.mfaSettings),
+),
           const Divider(),
 
           // Preferences Section
