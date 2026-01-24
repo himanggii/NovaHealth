@@ -12,6 +12,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
   static const String settings = '/settings';
+  static const String mfaSettings = '/mfa-settings';
   static const String language = '/language';
 
   // Health tracking routes
@@ -28,6 +29,9 @@ class AppRoutes {
   // Wellness routes
   static const String moodTracker = '/mood-tracker';
   static const String meditation = '/meditation';
+  
+  // ML Prediction routes
+  static const String healthRisk = '/health-risk';
   
   // Testing routes
   static const String syncTest = '/sync-test';

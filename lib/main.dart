@@ -20,11 +20,13 @@ import 'pages/nutrition/nutrition_page.dart';
 import 'pages/nutrition/meal_plan_page.dart';
 import 'pages/wellness/mood_tracker_page.dart';
 import 'pages/wellness/meditation_page.dart';
+import 'pages/health_risk_page.dart';
 import 'pages/settings/sync_test_page.dart';
 import 'providers/auth_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'services/database_service.dart';
 import 'services/supabase_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'config/supabase_config.dart';
@@ -32,28 +34,43 @@ import 'config/supabase_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  // 1) Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
+  print("Firestore initialized");
 
-  // Supabase (optional)
+  // 2) Supabase (optional - only if configured)
   if (SupabaseConfig.isConfigured) {
     try {
       await SupabaseService().init(
         supabaseUrl: SupabaseConfig.supabaseUrl,
         supabaseAnonKey: SupabaseConfig.supabaseAnonKey,
       );
-    } catch (_) {}
+      print("Supabase initialized");
+    } catch (e) {
+      print("Supabase initialization skipped: $e");
+    }
+  } else {
+    print("Supabase not configured - running in local-only mode");
   }
 
-  // Local storage
+  // 3) Hive local storage + SQLite + Sync Service
   await Hive.initFlutter();
+
+  // Initialize DatabaseService (includes Hive, SQLite, and Sync)
   await DatabaseService().init();
 
-  runApp(const ProviderScope(child: MyApp()));
+  // 3) Riverpod root
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends ConsumerWidget {
@@ -69,24 +86,25 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       initialRoute: isLoggedIn ? AppRoutes.home : AppRoutes.landing,
       routes: {
-        AppRoutes.landing: (_) => const LandingPage(),
-        AppRoutes.login: (_) => const LoginPage(),
-        AppRoutes.signup: (_) => const SignupPage(),
-        AppRoutes.gender: (_) => const GenderPage(),
-        AppRoutes.forgotPassword: (_) => const ForgotPasswordPage(),
-        AppRoutes.home: (_) => const HomePage(),
-        AppRoutes.editProfile: (_) => const EditProfilePage(),
-        '/change-password': (_) => const ChangePasswordPage(),
-        AppRoutes.settings: (_) => const SettingsPage(),
-        AppRoutes.workoutLog: (_) => const WorkoutLogPage(),
-        AppRoutes.hydration: (_) => const HydrationPage(),
-        AppRoutes.symptoms: (_) => const SymptomsPage(),
-        AppRoutes.periodTracker: (_) => const PeriodTrackerPage(),
-        AppRoutes.nutrition: (_) => const NutritionPage(),
-        AppRoutes.mealPlan: (_) => const MealPlanPage(),
-        AppRoutes.moodTracker: (_) => const MoodTrackerPage(),
-        AppRoutes.meditation: (_) => const MeditationPage(),
-        AppRoutes.syncTest: (_) => const SyncTestPage(),
+        AppRoutes.landing: (context) => const LandingPage(),
+        AppRoutes.login: (context) => const LoginPage(),
+        AppRoutes.signup: (context) => const SignupPage(),
+        AppRoutes.gender: (context) => const GenderPage(),
+        AppRoutes.forgotPassword: (context) => const ForgotPasswordPage(),
+        AppRoutes.home: (context) => const HomePage(),
+        AppRoutes.editProfile: (context) => const EditProfilePage(),
+        '/change-password': (context) => const ChangePasswordPage(),
+        AppRoutes.settings: (context) => const SettingsPage(),
+        AppRoutes.workoutLog: (context) => const WorkoutLogPage(),
+        AppRoutes.hydration: (context) => const HydrationPage(),
+        AppRoutes.symptoms: (context) => const SymptomsPage(),
+        AppRoutes.periodTracker: (context) => const PeriodTrackerPage(),
+        AppRoutes.nutrition: (context) => const NutritionPage(),
+        AppRoutes.mealPlan: (context) => const MealPlanPage(),
+        AppRoutes.moodTracker: (context) => const MoodTrackerPage(),
+        AppRoutes.meditation: (context) => const MeditationPage(),
+        AppRoutes.healthRisk: (context) => const HealthRiskPage(),
+        AppRoutes.syncTest: (context) => const SyncTestPage(),
       },
     );
   }

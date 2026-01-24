@@ -52,7 +52,7 @@ class ProfilePage extends ConsumerWidget {
               );
 
               if (confirmed == true && context.mounted) {
-                await ref.read(authStateProvider.notifier).logout();
+                await ref.read(authStateProvider.notifier).logout(ref);
                 if (context.mounted) {
                   Navigator.pushNamedAndRemoveUntil(
                     context,

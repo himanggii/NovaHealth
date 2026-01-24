@@ -135,6 +135,11 @@ Future<void> signUp({
           successMessage: result.message,
           error: null,
         );
+        
+        // IMPORTANT: Refresh currentUserProvider to update with new user
+        // This ensures the app shows the correct user after login
+        final container = ProviderScope.containerOf(context);
+        container.read(currentUserProvider.notifier).refresh();
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -164,7 +169,7 @@ Future<void> signUp({
   }
 
   /// LOGOUT
-  Future<void> logout() async {
+  Future<void> logout(WidgetRef ref) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -173,6 +178,9 @@ Future<void> signUp({
     try {
       await _authService.logout();
       state = AuthState.initial();
+      
+      // IMPORTANT: Clear currentUserProvider to ensure clean state
+      ref.read(currentUserProvider.notifier).setUser(null);
     } catch (_) {
       state = state.copyWith(
         isLoading: false,
