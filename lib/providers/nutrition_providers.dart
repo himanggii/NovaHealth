@@ -3,7 +3,6 @@ import '../models/food_log_model.dart';
 import '../models/meal_plan_model.dart';
 import '../services/database_service.dart';
 import 'auth_provider.dart';
-import 'health_provider.dart';
 
 // Food logs provider
 final foodLogsProvider = StateNotifierProvider<FoodLogsNotifier, List<FoodLogModel>>((ref) {
@@ -20,19 +19,19 @@ class FoodLogsNotifier extends StateNotifier<List<FoodLogModel>> {
   void _loadFoodLogs() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserFoodLogsByDate(user.id, DateTime.now());
     }
   }
 
   Future<void> addFoodLog(FoodLogModel foodLog) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.saveFoodLog(foodLog);
     _loadFoodLogs();
   }
 
   Future<void> deleteFoodLog(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deleteFoodLog(id);
     _loadFoodLogs();
   }
@@ -40,7 +39,7 @@ class FoodLogsNotifier extends StateNotifier<List<FoodLogModel>> {
   void loadDate(DateTime date) {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserFoodLogsByDate(user.id, date);
     }
   }
@@ -90,18 +89,16 @@ class NutritionTotals {
 
 // Recipes provider
 final recipesProvider = StateNotifierProvider<RecipesNotifier, List<RecipeModel>>((ref) {
-  return RecipesNotifier(ref);
+  return RecipesNotifier();
 });
 
 class RecipesNotifier extends StateNotifier<List<RecipeModel>> {
-  RecipesNotifier(this.ref) : super([]) {
+  RecipesNotifier() : super([]) {
     _loadRecipes();
   }
 
-  final Ref ref;
-
   void _loadRecipes() {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     state = db.getAllRecipes();
 
     // If no recipes exist, add default recipes
@@ -112,7 +109,7 @@ class RecipesNotifier extends StateNotifier<List<RecipeModel>> {
 
   void _addDefaultRecipes() async {
     final defaultRecipes = _getDefaultRecipes();
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
 
     for (final recipe in defaultRecipes) {
       await db.saveRecipe(recipe);
@@ -122,13 +119,13 @@ class RecipesNotifier extends StateNotifier<List<RecipeModel>> {
   }
 
   Future<void> addRecipe(RecipeModel recipe) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.saveRecipe(recipe);
     _loadRecipes();
   }
 
   Future<void> deleteRecipe(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deleteRecipe(id);
     _loadRecipes();
   }

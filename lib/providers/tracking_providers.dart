@@ -4,7 +4,6 @@ import '../models/symptom_model.dart';
 import '../models/period_cycle_model.dart';
 import '../services/database_service.dart';
 import 'auth_provider.dart';
-import 'health_provider.dart';
 
 const uuid = Uuid();
 
@@ -34,7 +33,7 @@ class SymptomsNotifier extends StateNotifier<List<SymptomModel>> {
   void _loadSymptoms() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserSymptoms(user.id);
     }
   }
@@ -44,13 +43,13 @@ class SymptomsNotifier extends StateNotifier<List<SymptomModel>> {
   }
 
   Future<void> addSymptom(SymptomModel symptom) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.saveSymptom(symptom);
     _loadSymptoms();
   }
 
   Future<void> deleteSymptom(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deleteSymptom(id);
     _loadSymptoms();
   }
@@ -86,7 +85,7 @@ class PeriodCyclesNotifier extends StateNotifier<List<PeriodCycleModel>> {
   void _loadCycles() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserPeriodCycles(user.id);
     }
   }
@@ -96,19 +95,19 @@ class PeriodCyclesNotifier extends StateNotifier<List<PeriodCycleModel>> {
   }
 
   Future<void> addCycle(PeriodCycleModel cycle) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.savePeriodCycle(cycle);
     _loadCycles();
   }
 
   Future<void> updateCycle(PeriodCycleModel cycle) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.savePeriodCycle(cycle);
     _loadCycles();
   }
 
   Future<void> deleteCycle(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deletePeriodCycle(id);
     _loadCycles();
   }
@@ -116,7 +115,7 @@ class PeriodCyclesNotifier extends StateNotifier<List<PeriodCycleModel>> {
   PeriodCycleModel? getActiveCycle() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       return db.getActivePeriodCycle(user.id);
     }
     return null;

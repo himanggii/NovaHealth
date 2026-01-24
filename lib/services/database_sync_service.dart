@@ -426,7 +426,7 @@ class DatabaseSyncService {
     }
 
     try {
-      debugPrint('🔄 Restoring user data from Supabase (non-blocking)...');
+      debugPrint('🔄 Restoring user data from Supabase...');
 
       // Restore workouts
       final workouts = await _supabaseService.client
@@ -525,8 +525,7 @@ class DatabaseSyncService {
 
       debugPrint('✅ User data restore completed!');
     } catch (e) {
-      debugPrint('⚠️ Could not restore user data from cloud (network issue or Supabase unavailable): $e');
-      debugPrint('ℹ️ App will work offline - data will sync when connection is restored');
+      debugPrint('❌ Error restoring user data: $e');
     }
   }
 

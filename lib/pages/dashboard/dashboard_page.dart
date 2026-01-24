@@ -209,12 +209,6 @@ class DashboardPage extends ConsumerWidget {
                   color: Colors.purple,
                   onTap: () => Navigator.pushNamed(context, AppRoutes.moodTracker),
                 ),
-                CompactQuickActionCard(
-                  icon: Icons.health_and_safety,
-                  title: 'Health Risk',
-                  color: Colors.red,
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.healthRisk),
-                ),
               ],
             ),
             const SizedBox(height: 16),

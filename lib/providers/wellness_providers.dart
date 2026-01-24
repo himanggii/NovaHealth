@@ -3,7 +3,6 @@ import '../models/mood_log_model.dart';
 import '../models/meditation_session_model.dart';
 import '../services/database_service.dart';
 import 'auth_provider.dart';
-import 'health_provider.dart';
 
 // Mood logs provider
 final moodLogsProvider = StateNotifierProvider<MoodLogsNotifier, List<MoodLogModel>>((ref) {
@@ -20,19 +19,19 @@ class MoodLogsNotifier extends StateNotifier<List<MoodLogModel>> {
   void _loadMoodLogs() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserMoodLogs(user.id);
     }
   }
 
   Future<void> addMoodLog(MoodLogModel moodLog) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.saveMoodLog(moodLog);
     _loadMoodLogs();
   }
 
   Future<void> deleteMoodLog(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deleteMoodLog(id);
     _loadMoodLogs();
   }
@@ -40,7 +39,7 @@ class MoodLogsNotifier extends StateNotifier<List<MoodLogModel>> {
   List<MoodLogModel> getLogsForDateRange(DateTime start, DateTime end) {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       return db.getUserMoodLogsByDateRange(user.id, start, end);
     }
     return [];
@@ -66,19 +65,19 @@ class MeditationSessionsNotifier extends StateNotifier<List<MeditationSessionMod
   void _loadSessions() {
     final user = ref.read(currentUserProvider);
     if (user != null) {
-      final db = ref.read(databaseServiceProvider);
+      final db = DatabaseService();
       state = db.getUserMeditationSessions(user.id);
     }
   }
 
   Future<void> addSession(MeditationSessionModel session) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.saveMeditationSession(session);
     _loadSessions();
   }
 
   Future<void> deleteSession(String id) async {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     await db.deleteMeditationSession(id);
     _loadSessions();
   }
@@ -100,7 +99,7 @@ class MeditationSessionsNotifier extends StateNotifier<List<MeditationSessionMod
 final meditationStreakProvider = Provider<int>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user != null) {
-    final db = ref.read(databaseServiceProvider);
+    final db = DatabaseService();
     return db.getMeditationStreak(user.id);
   }
   return 0;

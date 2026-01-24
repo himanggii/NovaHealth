@@ -84,12 +84,6 @@ class DatabaseService {
     await _sqliteService.init();
     await _syncService.init();
 
-    // 6️⃣ Auto-grant consent for health data (for development/testing)
-    final consent = getSetting(AppConstants.keyConsentGiven, defaultValue: false);
-    if (consent != true) {
-      await saveSetting(AppConstants.keyConsentGiven, true);
-    }
-
     _initialized = true;
   }
 
@@ -309,12 +303,16 @@ class DatabaseService {
   }
 
   // ==================== Consent Enforcement ====================
-  // Note: Consent is auto-granted on initialization for authenticated users
-  // Users who have logged in are considered to have consented to data logging
+
   Future<void> _ensureConsentOrThrow() async {
-    // Consent check removed - authenticated users can log data
-    // If you need explicit consent in production, implement a consent dialog
-    return;
+    final consent = getSetting(
+      AppConstants.keyConsentGiven,
+      defaultValue: false,
+    );
+
+    if (consent != true) {
+      throw Exception('Cannot save health data: user consent not given');
+    }
   }
 
   // Symptom operations

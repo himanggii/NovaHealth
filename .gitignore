@@ -71,7 +71,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Flutter desktop ephemeral files
-linux/flutter/ephemeral/
-windows/flutter/ephemeral/
+# Flutter generated files
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
 macos/Flutter/ephemeral/
+
